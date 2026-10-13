@@ -396,19 +396,3 @@ Run `python scripts/verify_code.py` to compile Python sources, validate the migr
 ## Release acceptance and external integrations
 
 Use `docs/acceptance-environments.md` for exact commands to run the full application/browser tests, PostgreSQL migration/concurrency checks, SMTP delivery test, read-only ACEEC data reconciliation preview, backup/restore drill, cloud smoke test, and Locust load test. `scripts/verify_release_acceptance.sh` runs the checks enabled by environment flags. The GitHub Actions workflow provisions disposable services for repeatable CI acceptance. It does not substitute for ACEEC-issued API credentials, real SMTP provider credentials, or access to a cloud deployment account.
-
-
-## Supplied THE RIPPLE Dataset v2.2 integration
-
-The application now bundles the files from `The_Ripple_Dataset.zip` under
-`data/ripple_dataset/` and exposes a dataset-backed incident analysis page at
-`/dataset-analysis` (authenticated users) plus JSON at
-`/api/dataset-analysis?variant=V1` (authenticated users).
-
-- V1: compound incident from `incident.json`
-- V2: network backbone fault, with downstream effects traced through `service_links.csv`
-- V3: local power faults and canteen water fault from the incident definition
-- `app/dataset_engine.py`: loads all 19 CSV tables and the incident JSON, validates core IDs/references, traces service dependencies, flags activity service risks, and propagates hard activity-dependency impacts.
-- `tests/test_dataset_engine.py`: acceptance checks for dataset integrity, causal paths, scenario variants, and invalid variant handling.
-
-**Important scope:** the new module is a dataset-backed impact-analysis layer, not yet a certified optimization solver. It does not claim to produce a fully feasible revised timetable or a validated engineering repair schedule. A production-grade planner must additionally enforce all room/time/staff/parts/prerequisite/verification constraints from `optimization_rules.md` and explicitly report search failure separately from proven infeasibility. The bundled package is synthetic teaching data, not verified live ACE Engineering College data.

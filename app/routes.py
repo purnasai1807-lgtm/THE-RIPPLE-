@@ -11,7 +11,7 @@ import ssl
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from functools import wraps
-from flask import render_template, request, redirect, url_for, flash, session, abort, make_response, g, jsonify
+from flask import render_template, request, redirect, url_for, flash, session, abort, make_response, g
 from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import func, or_, text
@@ -1695,30 +1695,6 @@ def register_routes(app):
         response.headers['Content-Disposition'] = f'attachment; filename="decision-{scenario.id}-impact-report.json"'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         return response
-
-    @app.get('/dataset-analysis')
-    @login_required
-    def dataset_analysis():
-        from .dataset_engine import analyze_incident, validate_dataset
-        variant = (request.args.get('variant') or 'V1').strip().upper()
-        try:
-            result = analyze_incident(variant)
-        except ValueError as exc:
-            abort(400, description=str(exc))
-        validation = validate_dataset()
-        return render_template('dataset_analysis.html', result=result, validation=validation, selected_variant=variant)
-
-    @app.get('/api/dataset-analysis')
-    @login_required
-    def dataset_analysis_api():
-        from .dataset_engine import analyze_incident
-        variant = (request.args.get('variant') or 'V1').strip().upper()
-        try:
-            return jsonify(analyze_incident(variant))
-        except ValueError as exc:
-            return jsonify({"ok": False, "error": str(exc)}), 400
-        except FileNotFoundError as exc:
-            return jsonify({"ok": False, "error": "Dataset package is incomplete.", "details": str(exc)}), 503
 
     @app.errorhandler(400)
     def bad_request(error):
