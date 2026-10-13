@@ -49,6 +49,15 @@ def create_app(test_config=None):
         HEALTHCHECK_DATABASE=True,
         SKIP_AUTO_SCHEMA=os.environ.get('SKIP_AUTO_SCHEMA', 'false').lower() == 'true',
     )
+    if os.environ.get('VERCEL'):
+        # Serverless: every invocation may be a fresh process, so don't hold local pools open and
+        # stay compatible with transaction poolers (Neon/Supabase/PgBouncer) that reject prepared statements.
+        from sqlalchemy.pool import NullPool
+        engine_options = {'poolclass': NullPool}
+        if database_url.startswith('postgresql+psycopg'):
+            engine_options['connect_args'] = {'prepare_threshold': None}
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
+        app.config.setdefault('TRUST_PROXY_HEADERS', True)
     if test_config:
         app.config.update(test_config)
     # Eligibility policy: only ACE Engineering College email accounts are allowed.
@@ -73,7 +82,12 @@ def create_app(test_config=None):
         domains = app.config.get('INSTITUTIONAL_EMAIL_DOMAINS', ())
         if app.config.get('REQUIRE_EMAIL_VERIFICATION') and (not domains or any('replace-with-approved' in domain for domain in domains)):
             raise RuntimeError('Production email verification requires the institution-approved INSTITUTIONAL_EMAIL_DOMAINS allowlist.')
-    os.makedirs(app.instance_path, exist_ok=True)
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+    except OSError:
+        # Read-only filesystems (e.g. Vercel serverless) cannot create the instance folder.
+        # It is only needed for local SQLite; production uses PostgreSQL.
+        pass
     db.init_app(app)
     migrate.init_app(app, db, compare_type=True)
     login_manager.init_app(app)

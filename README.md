@@ -396,3 +396,21 @@ Run `python scripts/verify_code.py` to compile Python sources, validate the migr
 ## Release acceptance and external integrations
 
 Use `docs/acceptance-environments.md` for exact commands to run the full application/browser tests, PostgreSQL migration/concurrency checks, SMTP delivery test, read-only ACEEC data reconciliation preview, backup/restore drill, cloud smoke test, and Locust load test. `scripts/verify_release_acceptance.sh` runs the checks enabled by environment flags. The GitHub Actions workflow provisions disposable services for repeatable CI acceptance. It does not substitute for ACEEC-issued API credentials, real SMTP provider credentials, or access to a cloud deployment account.
+
+## Deploying to Vercel
+
+Files added: `vercel.json` (routes everything to the Flask app), `api/index.py` (serverless entrypoint), `.vercelignore`, `.python-version`.
+
+1. Create a managed PostgreSQL database (Neon, Supabase, etc.) and copy its **pooled** connection string.
+2. In Vercel, import the repo (Framework Preset: **Other**) and add these Environment Variables for Production:
+   `DATABASE_URL`, `SECRET_KEY` (32+ random chars), `APP_ENV=production`, `COOKIE_SECURE=true`,
+   `PUBLIC_BASE_URL=https://<your-vercel-domain>`, `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USERNAME`,
+   `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`, `INSTITUTIONAL_EMAIL_DOMAINS=aceec.ac.in`.
+3. Run migrations once (and after every schema change) from your machine or CI, because serverless has no pre-deploy hook:
+   ```bash
+   DATABASE_URL="<direct or pooled url>" flask --app wsgi:app db upgrade
+   DATABASE_URL="<url>" flask --app wsgi:app create-admin you@aceec.ac.in
+   ```
+4. Deploy, then check `https://<your-domain>/healthz`.
+
+Notes: the filesystem is read-only on Vercel (no SQLite); DB connections use `NullPool` when `VERCEL` is set; the 2 MB request limit in the app is below Vercel's 4.5 MB body limit.
